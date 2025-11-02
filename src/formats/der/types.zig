@@ -191,6 +191,7 @@ pub const ObjectIdentifier = struct {
 
         var oid = ObjectIdentifier{ .buffer = undefined, .len = bytes.len };
         std.mem.copyForwards(u8, oid.buffer[0..bytes.len], bytes);
+        @memset(oid.buffer[bytes.len..], 0);
 
         return oid;
     }
@@ -653,7 +654,11 @@ fn testAcceptsTagExclusive(comptime T: type, comptime value: []const u8, expecte
     var tag_number: u5 = 0;
     while (true) : (tag_number += 1) {
         const tag_byte = tag_number | (@as(u8, @intFromEnum(params.class)) << 6) | (@as(u8, @intFromBool(params.constructed)) << 5);
-        var reader = Reader.init(&[2]u8{ tag_byte, value.len } ++ value);
+        var buffer: [2 + value.len]u8 = undefined;
+        buffer[0] = tag_byte;
+        buffer[1] = @intCast(value.len);
+        std.mem.copyForwards(u8, buffer[2..], value);
+        var reader = Reader.init(&buffer);
 
         if (tag_number == params.tag) {
             try std.testing.expectEqualDeep(expected, try T.read(&reader));
@@ -670,7 +675,11 @@ fn testAcceptsClassExclusive(comptime T: type, comptime value: []const u8, expec
     inline for (class_type_info.fields) |field| {
         // We modify the tag to set the class bits.
         const tag_byte = @as(u8, params.tag) | (field.value << 6) | (@as(u8, @intFromBool(params.constructed)) << 5);
-        var reader = Reader.init(&[2]u8{ tag_byte, value.len } ++ value);
+        var buffer: [2 + value.len]u8 = undefined;
+        buffer[0] = tag_byte;
+        buffer[1] = @intCast(value.len);
+        std.mem.copyForwards(u8, buffer[2..], value);
+        var reader = Reader.init(&buffer);
 
         if (field.value == @intFromEnum(params.class)) { // Universal
             try std.testing.expectEqualDeep(expected, try T.read(&reader));

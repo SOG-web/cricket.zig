@@ -59,15 +59,15 @@ const PemParser = struct {
     }
 
     fn parseMsg(self: *PemParser, allocator: Allocator) ![]const u8 {
-        var buffer = std.ArrayList(u8).init(allocator);
-        defer buffer.deinit();
+        var buffer = std.ArrayList(u8){};
+        defer buffer.deinit(allocator);
 
         while (self.inner.peek()) |c| {
             // Start of posteeb
             if (c == '-') break;
 
             const line = try self.inner.parseMany1(isBase64Char);
-            const slice = try buffer.addManyAsSlice(try b64_decoder.calcSizeForSlice(line));
+            const slice = try buffer.addManyAsSlice(allocator, try b64_decoder.calcSizeForSlice(line));
             try b64_decoder.decode(slice, line);
 
             try self.parseEol();
@@ -75,7 +75,7 @@ const PemParser = struct {
 
         if (buffer.items.len == 0) return "";
 
-        return buffer.toOwnedSlice();
+        return buffer.toOwnedSlice(allocator);
     }
 
     fn parseEol(self: *PemParser) !void {

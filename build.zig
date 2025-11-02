@@ -27,12 +27,15 @@ pub fn build(b: *std.Build) void {
 
         const example_exec = b.addExecutable(.{
             .name = example_name,
-            .root_source_file = b.path(b.pathJoin(&.{ "examples", filename })),
-            .target = target,
-            .optimize = optimize,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path(b.pathJoin(&.{ "examples", filename })),
+                .target = target,
+                .optimize = optimize,
+                .imports = &.{
+                    .{ .name = "cricket", .module = cricket },
+                },
+            }),
         });
-        // Make cricket.zig available for examples
-        example_exec.root_module.addImport("cricket", cricket);
 
         const install_example = b.addInstallArtifact(example_exec, .{});
 
@@ -43,9 +46,11 @@ pub fn build(b: *std.Build) void {
     if (gen_docs) {
         const docs = b.addObject(.{
             .name = "docs",
-            .root_source_file = b.path("src/cricket.zig"),
-            .target = target,
-            .optimize = .Debug,
+            .root_module = b.createModule(.{
+                .root_source_file = b.path("src/cricket.zig"),
+                .target = target,
+                .optimize = .Debug,
+            }),
         });
         const install_docs = b.addInstallDirectory(.{
             .source_dir = docs.getEmittedDocs(),
@@ -57,9 +62,11 @@ pub fn build(b: *std.Build) void {
 
     // Tests
     const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/cricket.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/cricket.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     const test_step = b.step("test", "Run unit tests");
 
